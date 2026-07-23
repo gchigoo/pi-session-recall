@@ -78,6 +78,7 @@ export function resolveSessionProvenance(
   }
 
   const ancestors = loadAncestorChain(header.parentSession, {
+    sessionDir: path.dirname(path.resolve(sessionFile)),
     registeredRoots,
     readFileSync,
     existsSync,
@@ -188,6 +189,7 @@ interface AncestorLoadErr {
 function loadAncestorChain(
   parentSession: string,
   options: {
+    sessionDir: string;
     registeredRoots: string[];
     readFileSync: typeof fs.readFileSync;
     existsSync: typeof fs.existsSync;
@@ -198,20 +200,22 @@ function loadAncestorChain(
   const visitedPaths = new Set<string>();
   const visitedHeaders = new Set<string>();
   let current: string | undefined = parentSession;
+  let currentDir = options.sessionDir;
 
   for (let depth = 0; depth < options.maxDepth && current; depth += 1) {
-    const resolved = path.resolve(current);
+    const resolved = resolveParentSessionPath(
+      current,
+      currentDir,
+      options.registeredRoots,
+      options.existsSync,
+    );
+    if (!resolved) {
+      return { ok: false, reason: ERROR_CODES.PARENT_MISSING };
+    }
     if (visitedPaths.has(resolved)) {
       return { ok: false, reason: ERROR_CODES.PARENT_CYCLE };
     }
     visitedPaths.add(resolved);
-
-    if (!isPathInsideRegisteredRoots(resolved, options.registeredRoots)) {
-      return { ok: false, reason: ERROR_CODES.PARENT_OUTSIDE_REGISTERED_ROOTS };
-    }
-    if (!options.existsSync(resolved)) {
-      return { ok: false, reason: ERROR_CODES.PARENT_MISSING };
-    }
 
     const parsed = parseSessionText(options.readFileSync(resolved, "utf8"));
     if (parsed.status !== "ok" || !parsed.header) {
@@ -223,6 +227,7 @@ function loadAncestorChain(
     visitedHeaders.add(parsed.header.id);
     sessions.push({ header: parsed.header, messages: parsed.messages });
     current = parsed.header.parentSession;
+    currentDir = path.dirname(resolved);
   }
 
   if (current) {
@@ -230,6 +235,37 @@ function loadAncestorChain(
   }
 
   return { ok: true, sessions: sessions.reverse() };
+}
+
+/**
+ * 解析 parentSession：绝对路径 / 相对当前 session 目录 / 相对 roots / basename 回退。
+ */
+function resolveParentSessionPath(
+  parentSession: string,
+  sessionDir: string,
+  registeredRoots: string[],
+  existsSync: typeof fs.existsSync,
+): string | null {
+  const candidates = [
+    path.resolve(parentSession),
+    path.resolve(sessionDir, parentSession),
+    ...registeredRoots.map((root) => path.resolve(root, parentSession)),
+    ...registeredRoots.map((root) => path.resolve(root, path.basename(parentSession))),
+  ];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    if (!isPathInsideRegisteredRoots(candidate, registeredRoots)) {
+      continue;
+    }
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 /**

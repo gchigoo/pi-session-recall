@@ -26,7 +26,8 @@ const forkSharedUser = makeEntryId("fork-shared-user");
 const forkSharedAsst = makeEntryId("fork-shared-asst");
 const forkChildNew = makeEntryId("fork-child-new");
 
-const parentPath = path.join(outDir, "cross-project-parent.jsonl");
+/** 相对文件名：跨平台可解析（相对 session 目录 / registered roots） */
+const parentRel = "cross-project-parent.jsonl";
 
 const specs: SessionFixtureSpec[] = [
   {
@@ -104,7 +105,7 @@ const specs: SessionFixtureSpec[] = [
     header: {
       id: "55555555-5555-5555-5555-555555555555",
       cwd: projectB,
-      parentSession: parentPath,
+      parentSession: parentRel,
     },
     entries: [
       {
@@ -132,7 +133,7 @@ const specs: SessionFixtureSpec[] = [
     header: {
       id: "66666666-6666-6666-6666-666666666666",
       cwd: projectA,
-      parentSession: path.join(outDir, "linear.jsonl"),
+      parentSession: "linear.jsonl",
     },
     entries: [
       {
@@ -161,7 +162,7 @@ const specs: SessionFixtureSpec[] = [
     header: {
       id: "77777777-7777-7777-7777-777777777777",
       cwd: projectB,
-      parentSession: path.join(outDir, "does-not-exist.jsonl"),
+      parentSession: "does-not-exist.jsonl",
     },
     entries: [
       {
