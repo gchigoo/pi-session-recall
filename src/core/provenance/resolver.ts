@@ -246,11 +246,13 @@ function resolveParentSessionPath(
   registeredRoots: string[],
   existsSync: typeof fs.existsSync,
 ): string | null {
+  const base = portableBasename(parentSession);
   const candidates = [
     path.resolve(parentSession),
     path.resolve(sessionDir, parentSession),
+    path.resolve(sessionDir, base),
     ...registeredRoots.map((root) => path.resolve(root, parentSession)),
-    ...registeredRoots.map((root) => path.resolve(root, path.basename(parentSession))),
+    ...registeredRoots.map((root) => path.resolve(root, base)),
   ];
   const seen = new Set<string>();
   for (const candidate of candidates) {
@@ -266,6 +268,15 @@ function resolveParentSessionPath(
     }
   }
   return null;
+}
+
+/**
+ * 跨平台取文件名（兼容 Windows 反斜杠路径在 POSIX 上解析）。
+ */
+function portableBasename(input: string): string {
+  const normalized = input.replaceAll("\\", "/");
+  const parts = normalized.split("/").filter((part) => part.length > 0);
+  return parts[parts.length - 1] ?? input;
 }
 
 /**
