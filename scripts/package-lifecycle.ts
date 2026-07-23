@@ -13,6 +13,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ALLOW_PREFIXES = [
   "package.json",
   "README.md",
+  "README.zh-CN.md",
   "LICENSE",
   "CHANGELOG.md",
   "dist/",
