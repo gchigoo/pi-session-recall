@@ -1,0 +1,3 @@
+{"type":"session","version":3,"id":"77777777-7777-7777-7777-777777777777","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/tmp/pi-session-recall-fixtures/project-b","parentSession":"D:\\Personal\\pi-session-recall\\tests\\fixtures\\sessions\\does-not-exist.jsonl"}
+{"type":"message","id":"68a4fae8","parentId":null,"timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"user","content":"copied history with missing parent","timestamp":1767225601000}}
+{"type":"message","id":"d16a0dbe","parentId":"68a4fae8","timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"user","content":"child-only new content","timestamp":1767225601000}}

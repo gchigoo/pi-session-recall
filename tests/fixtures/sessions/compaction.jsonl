@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"33333333-3333-3333-3333-333333333333","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/tmp/pi-session-recall-fixtures/project-a"}
+{"type":"message","id":"ebb1e7e4","parentId":null,"timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"user","content":"pre-compaction detail about redis","timestamp":1767225601000}}
+{"type":"message","id":"69718759","parentId":"ebb1e7e4","timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"pre-compaction redis answer"}],"api":"probe","provider":"probe","model":"probe","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"stop","timestamp":1767225601000}}
+{"type":"compaction","id":"91cf2d34","parentId":"69718759","timestamp":"2026-01-01T00:00:02.000Z","summary":"COMPACTION SUMMARY should not be indexed","tokensBefore":1000}
+{"type":"message","id":"e9ba44e5","parentId":"91cf2d34","timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"user","content":"post compaction follow-up","timestamp":1767225601000}}

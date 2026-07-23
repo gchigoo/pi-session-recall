@@ -1,0 +1,8 @@
+dist
+node_modules
+coverage
+*.tgz
+package-lock.json
+tests/fixtures/sessions
+docs/spikes
+roadmap.md

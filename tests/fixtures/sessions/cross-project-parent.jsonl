@@ -1,0 +1,3 @@
+{"type":"session","version":3,"id":"44444444-4444-4444-4444-444444444444","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/tmp/pi-session-recall-fixtures/project-a"}
+{"type":"message","id":"1c83e9d5","parentId":null,"timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"user","content":"project A secret topic alpha","timestamp":1767225601000}}
+{"type":"message","id":"61a0a5e9","parentId":"1c83e9d5","timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"project A secret answer alpha"}],"api":"probe","provider":"probe","model":"probe","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"stop","timestamp":1767225601000}}

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+.pi/
+tmp/
+.cache/
+*.sqlite
+*.sqlite-*
+# 本地规划/阶段文档，不入库
+docs/
+roadmap.md

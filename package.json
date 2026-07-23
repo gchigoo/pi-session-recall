@@ -1,0 +1,89 @@
+{
+  "name": "pi-session-recall",
+  "version": "1.0.0",
+  "description": "Local-first Pi package for read-only session indexing, manual recall, and optional auto-recall",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "session-recall",
+    "sqlite",
+    "fts5"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "pi-session-recall": "./dist/bin/pi-session-recall.js"
+  },
+  "main": "./dist/adapters/pi/extension.js",
+  "types": "./dist/adapters/pi/extension.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/adapters/pi/extension.d.ts",
+      "import": "./dist/adapters/pi/extension.js"
+    },
+    "./cli": {
+      "types": "./dist/bin/pi-session-recall.d.ts",
+      "import": "./dist/bin/pi-session-recall.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "extensions",
+    "bin",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/index.ts"
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:security": "vitest run --config vitest.security.config.ts",
+    "eval:recall": "tsx scripts/eval/recall.ts",
+    "bench:smoke10k": "tsx scripts/bench/smoke-10k.ts",
+    "bench:recall": "tsx scripts/bench/recall-100k.ts",
+    "test:package": "tsx scripts/package-lifecycle.ts",
+    "probe": "tsx scripts/probes/run-all.ts",
+    "probe:capability": "tsx scripts/probes/capability.ts",
+    "fixture:build": "tsx scripts/build-fixtures.ts",
+    "spike:provenance": "tsx scripts/spikes/provenance.ts",
+    "spike:cjk": "tsx scripts/spikes/cjk-retrieval.ts",
+    "smoke:extension": "tsx scripts/smoke-extension.ts",
+    "cli": "tsx bin/pi-session-recall.ts",
+    "pack:dry": "npm run build && npm pack --dry-run",
+    "release:gate": "npm run check && npm run test:integration && npm run test:security && npm run eval:recall && npm run bench:recall && npm run test:package && npm run pack:dry"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.81.1"
+  },
+  "dependencies": {
+    "typebox": "1.1.38"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.81.1",
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^24.12.4",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.7.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0",
+    "vitest": "^4.0.16"
+  }
+}
