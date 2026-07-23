@@ -39,11 +39,11 @@ Agent tool：`session_recall({ query, limit? })` — 仅当前 project。
 
 ## 配置
 
-| 项 | 默认 | 说明 |
-|---|---|---|
-| `PI_SESSION_RECALL_HOME` | `~/.pi/agent/pi-session-recall` | data-home |
-| `autoRecall` | `false` | `/recall config auto on\|off` |
-| 手动/tool limit | 5（max 20/10） | runtime_config |
+| 项                       | 默认                            | 说明                          |
+| ------------------------ | ------------------------------- | ----------------------------- |
+| `PI_SESSION_RECALL_HOME` | `~/.pi/agent/pi-session-recall` | data-home                     |
+| `autoRecall`             | `false`                         | `/recall config auto on\|off` |
+| 手动/tool limit          | 5（max 20/10）                  | runtime_config                |
 
 ## 安全与隐私
 
@@ -55,11 +55,11 @@ Agent tool：`session_recall({ query, limit? })` — 仅当前 project。
 
 ## 清理边界
 
-| 操作 | 删除 | 保留 |
-|---|---|---|
-| `purge-index` | chunks/FTS/cursors | data-home、Pi JSONL |
-| `purge-data` | 整个扩展 data-home | Pi JSONL（需重启进程后再 setup） |
-| 移除 package | 扩展注册 | data-home（除非另跑 purge-data）、Pi JSONL |
+| 操作          | 删除               | 保留                                       |
+| ------------- | ------------------ | ------------------------------------------ |
+| `purge-index` | chunks/FTS/cursors | data-home、Pi JSONL                        |
+| `purge-data`  | 整个扩展 data-home | Pi JSONL（需重启进程后再 setup）           |
+| 移除 package  | 扩展注册           | data-home（除非另跑 purge-data）、Pi JSONL |
 
 ## 开发与质量门
 
