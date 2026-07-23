@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Bilingual README (English + 中文)
+- Add `repository` / `homepage` / `bugs` for npm package page
+
 ## 1.0.1
 
 - Fix root ID collision: full-path sha256 IDs + legacy `user-*` 12hex migration

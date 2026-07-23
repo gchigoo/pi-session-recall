@@ -1,68 +1,75 @@
 # pi-session-recall
 
-本地优先的 Pi package：只读索引 Pi session，手动搜索，可选自动召回（`v1.0.1`，默认关闭）。
+[English](README.md) | [中文](README.zh-CN.md)
 
-## 要求
+Local-first Pi package: read-only indexing of Pi sessions, manual search, and optional auto-recall (`v1.0.2`, off by default).
+
+Repository: [github.com/gchigoo/pi-session-recall](https://github.com/gchigoo/pi-session-recall)
+
+## Requirements
 
 - Node.js `>=22.19.0`
 - Pi `@earendil-works/pi-coding-agent` `0.81.1`
-- OS：Windows / Linux / macOS；Session：Pi JSONL v3
+- OS: Windows / Linux / macOS; Sessions: Pi JSONL v3
 
-## 安装
+## Install
 
 ```bash
+# From npm
+npm i -g pi-session-recall
+# or local path for Pi
 pi install /absolute/path/to/pi-session-recall
-# 或开发加载
+# Dev load
 pi -e ./extensions/index.ts
 ```
 
-安装本身不扫描历史。Package 具备本机权限——只安装可信源码。
+Install does not scan history. The package has local machine access — only install from trusted sources.
 
-## 快速开始
+## Quick start
 
 ```bash
 # Companion CLI
-npm run cli -- setup --root ~/.pi/agent/sessions
-npm run cli -- index
-npm run cli -- search "认证" --scope project --json
+pi-session-recall setup --root ~/.pi/agent/sessions
+pi-session-recall index
+pi-session-recall search "authentication" --scope project --json
 
-# 在 Pi TUI
+# In Pi TUI
 /recall setup
-/recall search 认证
+/recall search authentication
 /recall search --all shared keyword
-/recall config auto on   # 可选；确认后临时注入相关历史
+/recall config auto on   # optional; after confirm, injects relevant history temporarily
 ```
 
-Agent tool：`session_recall({ query, limit? })` — 仅当前 project。
+Agent tool: `session_recall({ query, limit? })` — current project only.
 
-自动召回：`before_agent_start` 检索 + 固定 trust rule；`context` 注入 versioned envelope（不写 JSONL，≤4/≤600）。
+Auto-recall: `before_agent_start` retrieval + fixed trust rule; `context` injects a versioned envelope (not written to JSONL, ≤4 records / ≤600 tokens).
 
-## 配置
+## Configuration
 
-| 项                       | 默认                            | 说明                          |
+| Item                     | Default                         | Notes                         |
 | ------------------------ | ------------------------------- | ----------------------------- |
 | `PI_SESSION_RECALL_HOME` | `~/.pi/agent/pi-session-recall` | data-home                     |
 | `autoRecall`             | `false`                         | `/recall config auto on\|off` |
-| 手动/tool limit          | 5（max 20/10）                  | runtime_config                |
+| Manual / tool limit      | 5 (max 20 / 10)                 | runtime_config                |
 
-## 安全与隐私
+## Security and privacy
 
-- 不修改 Pi 原始 JSONL
-- 索引为明文本地副本；known secret 脱敏/拒绝；未知 secret 可能残留
-- POSIX：data-home `0700`，`index.sqlite` / `-wal` / `-shm` `0600`；Windows 依赖默认 ACL，不额外改权限
-- tool 输出不含 path；thinking/tool 内容不索引
-- 跨项目 fork 不泄漏；partial rebuild 时自动召回关闭
-- 默认日志不含 query/正文/绝对路径
+- Does not modify original Pi JSONL
+- Index is a local plaintext copy; known secrets are redacted or rejected; unknown secrets may remain
+- POSIX: data-home `0700`, `index.sqlite` / `-wal` / `-shm` `0600`; Windows uses default ACLs (no extra chmod)
+- Tool output contains no paths; thinking / tool content is not indexed
+- Cross-project forks do not leak; auto-recall turns off during partial rebuild
+- Default logs omit query text, body text, and absolute paths
 
-## 清理边界
+## Cleanup boundaries
 
-| 操作          | 删除               | 保留                                       |
-| ------------- | ------------------ | ------------------------------------------ |
-| `purge-index` | chunks/FTS/cursors | data-home、Pi JSONL                        |
-| `purge-data`  | 整个扩展 data-home | Pi JSONL（需重启进程后再 setup）           |
-| 移除 package  | 扩展注册           | data-home（除非另跑 purge-data）、Pi JSONL |
+| Action         | Deletes                    | Keeps                                         |
+| -------------- | -------------------------- | --------------------------------------------- |
+| `purge-index`  | chunks / FTS / cursors     | data-home, Pi JSONL                           |
+| `purge-data`   | entire extension data-home | Pi JSONL (restart process before setup again) |
+| Remove package | extension registration     | data-home (unless `purge-data`), Pi JSONL     |
 
-## 开发与质量门
+## Development and quality gates
 
 ```bash
 npm install
@@ -73,10 +80,8 @@ npm run eval:recall
 npm run bench:recall
 npm run test:package
 npm run pack:dry
-# 或
+# or
 npm run release:gate
 ```
 
-Changelog：[`CHANGELOG.md`](CHANGELOG.md)。
-
-本仓库不授权远程 `npm publish`，除非 owner 另行明确授权。
+Changelog: [`CHANGELOG.md`](CHANGELOG.md).
