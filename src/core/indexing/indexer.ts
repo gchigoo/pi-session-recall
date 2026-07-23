@@ -8,7 +8,7 @@ import { toCodedError } from "../diagnostics/sqlite-errors.js";
 import { resolveProjectIdentity } from "../provenance/project-identity.js";
 import { buildScanCursor, detectScanDisposition } from "../sessions/scan-state.js";
 import { indexSessionFile } from "../sessions/pipeline.js";
-import { createRootRegistry } from "../sessions/root-registry.js";
+import { createRootRegistry, pathsEqual, rootIdForPath } from "../sessions/root-registry.js";
 import { clearPartialRebuild, markPartialRebuild } from "../store/projection.js";
 import {
   beginSessionReconcile,
@@ -84,20 +84,21 @@ export function runIndex(
   let roots = listSessionRoots(db).filter((root) => root.enabled);
   if (options?.rootPath) {
     const resolved = path.resolve(options.rootPath);
-    const existing = roots.find((root) => path.resolve(root.path) === resolved);
+    const existing = roots.find((root) => pathsEqual(root.path, resolved));
     if (!existing) {
       upsertSessionRoot(db, {
-        id: `user-${Buffer.from(resolved).toString("hex").slice(0, 12)}`,
+        id: rootIdForPath(resolved),
         path: resolved,
         source: "user-added",
         enabled: true,
       });
       roots = listSessionRoots(db).filter((root) => root.enabled);
     }
-    roots = roots.filter((root) => path.resolve(root.path) === resolved);
+    roots = roots.filter((root) => pathsEqual(root.path, resolved));
   }
 
   const registry = createRootRegistry(roots);
+  const scannedRootIds = roots.map((root) => root.id);
   const files = discoverSessionFiles(roots);
   const dispositions: Record<string, number> = {};
   let indexedSessions = 0;
@@ -120,9 +121,10 @@ export function runIndex(
     }
   }
 
-  // 删除已消失文件的索引（非 excluded）
+  // 删除对账仅限本次扫描的 root，避免 index --root A 误删 B
   reconcileDeletedFiles(
     db,
+    scannedRootIds,
     files.map((item) => path.resolve(item.filePath)),
   );
 
@@ -190,11 +192,16 @@ export function indexSingleFile(
   const resolved = path.resolve(filePath);
   let rootId = options?.rootId;
   if (!rootId) {
-    const owning = roots.find(
-      (root) =>
-        resolved === path.resolve(root.path) ||
-        resolved.startsWith(`${path.resolve(root.path)}${path.sep}`),
-    );
+    const owning = roots.find((root) => {
+      const rootPath = path.resolve(root.path);
+      if (pathsEqual(resolved, rootPath)) {
+        return true;
+      }
+      if (process.platform === "win32") {
+        return resolved.toLowerCase().startsWith(`${rootPath.toLowerCase()}${path.sep}`);
+      }
+      return resolved.startsWith(`${rootPath}${path.sep}`);
+    });
     if (!owning) {
       return { indexed: false, disposition: "outside-roots", chunksUpserted: 0, sessionId: null };
     }
@@ -218,7 +225,7 @@ export function indexSingleFile(
  */
 export function ensureRuntimeSessionRoot(db: DatabaseSync, sessionDir: string): void {
   const resolved = path.resolve(sessionDir);
-  const existing = listSessionRoots(db).find((root) => path.resolve(root.path) === resolved);
+  const existing = listSessionRoots(db).find((root) => pathsEqual(root.path, resolved));
   if (existing) {
     if (!existing.enabled) {
       upsertSessionRoot(db, { ...existing, enabled: true });
@@ -251,8 +258,13 @@ function indexDiscoveredFile(
 ): IndexOneResult {
   const stat = fs.statSync(filePath);
   assertFileWithinLimit(stat.size);
+  // 单一快照：后续 parse / provenance 对当前文件复用同一份 content
   const content = fs.readFileSync(filePath, "utf8");
-  const parsedQuick = indexSessionFile(filePath, { registry: options.registry });
+  const snapshotRead = createSnapshotReadFileSync(filePath, content);
+  const parsedQuick = indexSessionFile(filePath, {
+    registry: options.registry,
+    readFileSync: snapshotRead,
+  });
   if (!parsedQuick.sessionId) {
     return { indexed: false, disposition: "header-invalid", chunksUpserted: 0, sessionId: null };
   }
@@ -277,7 +289,7 @@ function indexDiscoveredFile(
   const disposition = options.forceFull ? "full-reconcile" : detectScanDisposition(cursor, content);
   if (disposition === "unchanged") {
     // 路径迁移：同 session_id 更新 file_path
-    if (previous && path.resolve(previous.filePath) !== path.resolve(filePath)) {
+    if (previous && !pathsEqual(previous.filePath, filePath)) {
       upsertSession(db, {
         ...previous,
         rootId,
@@ -342,13 +354,59 @@ function indexDiscoveredFile(
 }
 
 /**
- * 删除文件已不存在的 session chunks。
+ * 当前 session 文件读自内存快照，父 session 等仍走真实 fs。
  */
-function reconcileDeletedFiles(db: DatabaseSync, existingFiles: string[]): void {
+function createSnapshotReadFileSync(sessionFile: string, snapshot: string): typeof fs.readFileSync {
+  const resolvedSession = path.resolve(sessionFile);
+  const wrapped = ((
+    target: fs.PathOrFileDescriptor,
+    options?:
+      | {
+          encoding?: BufferEncoding | null;
+          flag?: string;
+        }
+      | BufferEncoding
+      | null,
+  ) => {
+    const targetPath =
+      typeof target === "string" || target instanceof URL ? path.resolve(String(target)) : null;
+    if (targetPath !== null && pathsEqual(targetPath, resolvedSession)) {
+      const encoding =
+        typeof options === "string"
+          ? options
+          : options && typeof options === "object"
+            ? options.encoding
+            : "utf8";
+      if (encoding === undefined || encoding === null) {
+        return Buffer.from(snapshot, "utf8");
+      }
+      return snapshot;
+    }
+    return fs.readFileSync(target as Parameters<typeof fs.readFileSync>[0], options as never);
+  }) as typeof fs.readFileSync;
+  return wrapped;
+}
+
+/**
+ * 删除文件已不存在的 session chunks（仅限本次扫描的 root）。
+ */
+function reconcileDeletedFiles(
+  db: DatabaseSync,
+  scannedRootIds: string[],
+  existingFiles: string[],
+): void {
+  if (scannedRootIds.length === 0) {
+    return;
+  }
   const existing = new Set(existingFiles);
+  const placeholders = scannedRootIds.map(() => "?").join(", ");
   const rows = db
-    .prepare(`SELECT session_id AS sessionId, file_path AS filePath, status FROM sessions`)
-    .all() as Array<{ sessionId: string; filePath: string; status: string }>;
+    .prepare(
+      `SELECT session_id AS sessionId, file_path AS filePath, status
+       FROM sessions
+       WHERE root_id IN (${placeholders})`,
+    )
+    .all(...scannedRootIds) as Array<{ sessionId: string; filePath: string; status: string }>;
   for (const row of rows) {
     if (row.status === "excluded") {
       continue;

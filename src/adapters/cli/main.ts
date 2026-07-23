@@ -12,6 +12,7 @@ import {
   setupIndex,
 } from "../../core/indexing/indexer.js";
 import { searchChunks, type SearchOptions } from "../../core/retrieval/search.js";
+import { rootIdForPath } from "../../core/sessions/root-registry.js";
 import { closeDatabase, openDatabase, readSchemaMeta } from "../../core/store/db.js";
 import { resolveDataHome, resolveDbPath } from "../../core/store/paths.js";
 import { checkProjectionIntegrity } from "../../core/store/projection.js";
@@ -315,7 +316,7 @@ function parseRoots(args: string[]): Array<{ id: string; path: string; source: "
     if (args[i] === "--root" && args[i + 1]) {
       const rootPath = path.resolve(args[i + 1]!);
       roots.push({
-        id: `user-${Buffer.from(rootPath).toString("hex").slice(0, 12)}`,
+        id: rootIdForPath(rootPath),
         path: rootPath,
         source: "user-added",
       });

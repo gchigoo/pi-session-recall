@@ -61,10 +61,36 @@ export function assertNotPurgedInProcess(): void {
 }
 
 /**
- * 确保 data-home 目录存在（purge 后同进程拒绝）。
+ * 确保 data-home 目录存在（purge 后同进程拒绝），POSIX 收紧为 0700。
  */
 export function ensureDataHome(dataHome = resolveDataHome()): string {
   assertNotPurgedInProcess();
-  fs.mkdirSync(dataHome, { recursive: true });
+  fs.mkdirSync(dataHome, { recursive: true, mode: 0o700 });
+  if (process.platform !== "win32") {
+    try {
+      fs.chmodSync(dataHome, 0o700);
+    } catch {
+      // 某些挂载点可能拒绝 chmod，不阻断启动
+    }
+  }
   return dataHome;
+}
+
+/**
+ * 收紧 DB 及 WAL/SHM 文件权限为 0600（win32 跳过）。
+ */
+export function hardenDbFilePermissions(dbPath: string): void {
+  if (process.platform === "win32") {
+    return;
+  }
+  for (const candidate of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
+    if (!fs.existsSync(candidate)) {
+      continue;
+    }
+    try {
+      fs.chmodSync(candidate, 0o600);
+    } catch {
+      // 忽略单文件 chmod 失败
+    }
+  }
 }

@@ -28,8 +28,13 @@ const KNOWN_TOKEN_PREFIXES = [
   /\b(AIza[0-9A-Za-z_-]{20,})\b/g,
 ];
 
-const CREDENTIAL_ASSIGNMENT =
-  /\b([A-Za-z_][A-Za-z0-9_]*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD))\s*[:=]\s*['"]?([^\s'"]{8,})['"]?/gi;
+// 关键词可出现在标识符任意位置：裸 API_KEY、MY_API_KEY、AWS_SECRET_ACCESS_KEY、AWS_ACCESS_KEY_ID
+const CREDENTIAL_KEYWORD = String.raw`(?:API[_-]?KEY|ACCESS[_-]?KEY(?:_ID)?|SECRET|TOKEN|PASSWORD)`;
+const CREDENTIAL_NAME = String.raw`(?:${CREDENTIAL_KEYWORD}|[A-Za-z_][A-Za-z0-9_]*${CREDENTIAL_KEYWORD}[A-Za-z0-9_]*)`;
+const CREDENTIAL_ASSIGNMENT = new RegExp(
+  String.raw`\b(${CREDENTIAL_NAME})\s*[:=]\s*['"]?([^\s'"]{8,})['"]?`,
+  "gi",
+);
 
 const URL_USERINFO = /((?:https?|git|ssh):\/\/)([^/\s@]+)@/gi;
 

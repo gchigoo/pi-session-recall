@@ -1,6 +1,6 @@
 # pi-session-recall
 
-本地优先的 Pi package：只读索引 Pi session，手动搜索，可选自动召回（`v1.0.0`，默认关闭）。
+本地优先的 Pi package：只读索引 Pi session，手动搜索，可选自动召回（`v1.0.1`，默认关闭）。
 
 ## 要求
 
@@ -49,6 +49,7 @@ Agent tool：`session_recall({ query, limit? })` — 仅当前 project。
 
 - 不修改 Pi 原始 JSONL
 - 索引为明文本地副本；known secret 脱敏/拒绝；未知 secret 可能残留
+- POSIX：data-home `0700`，`index.sqlite` / `-wal` / `-shm` `0600`；Windows 依赖默认 ACL，不额外改权限
 - tool 输出不含 path；thinking/tool 内容不索引
 - 跨项目 fork 不泄漏；partial rebuild 时自动召回关闭
 - 默认日志不含 query/正文/绝对路径

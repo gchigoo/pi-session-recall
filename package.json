@@ -1,6 +1,6 @@
 {
   "name": "pi-session-recall",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local-first Pi package for read-only session indexing, manual recall, and optional auto-recall",
   "type": "module",
   "keywords": [

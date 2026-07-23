@@ -71,48 +71,51 @@ export function searchChunks(
     throw new Error(ERROR_CODES.QUERY_INVALID);
   }
 
-  const filters: string[] = ["chunks_fts MATCH ?"];
-  const params: Array<string | number> = [parsed.matchExpression];
+  // 硬性范围条件在 FTS LIMIT 之前应用，避免他项目高分结果挤掉本项目候选
+  const chunkFilters: string[] = [
+    `c.session_id IN (SELECT session_id FROM sessions WHERE status = 'active')`,
+  ];
+  const chunkParams: Array<string | number> = [];
 
   if (options.scope === "project") {
     const projectKey = options.projectKey;
     if (!projectKey) {
       throw new Error(ERROR_CODES.QUERY_INVALID);
     }
-    filters.push("c.origin_project_key = ?");
-    params.push(projectKey);
+    chunkFilters.push("c.origin_project_key = ?");
+    chunkParams.push(projectKey);
   }
   if (options.excludeSessionId) {
-    filters.push("c.session_id != ?");
-    params.push(options.excludeSessionId);
+    chunkFilters.push("c.session_id != ?");
+    chunkParams.push(options.excludeSessionId);
   }
   if (options.autoEligibleOnly) {
-    filters.push("c.auto_eligible = 1");
+    chunkFilters.push("c.auto_eligible = 1");
   }
   if (options.verifiedOnly) {
-    filters.push("c.provenance = 'verified'");
+    chunkFilters.push("c.provenance = 'verified'");
   }
 
-  // FTS 先 top-n，再 JOIN 过滤，避免高命中词在 JOIN 前物化全表匹配
   const ftsLimit = Math.max(CANDIDATE_CAP * 4, 256);
-  const postFilters = filters.filter((item) => item !== "chunks_fts MATCH ?");
   const sql = `WITH fts AS (
            SELECT source_key AS sourceKey, bm25(chunks_fts) AS rank
            FROM chunks_fts
            WHERE chunks_fts MATCH ?
+             AND source_key IN (
+               SELECT c.source_key FROM chunks c
+               WHERE ${chunkFilters.join(" AND ")}
+             )
            ORDER BY rank
            LIMIT ?
          )
          SELECT fts.sourceKey AS sourceKey, fts.rank AS rank
          FROM fts
-         JOIN chunks c ON c.source_key = fts.sourceKey
-         ${postFilters.length > 0 ? `WHERE ${postFilters.join(" AND ")}` : ""}
          ORDER BY fts.rank
          LIMIT ?`;
   const queryParams: Array<string | number> = [
     parsed.matchExpression,
+    ...chunkParams,
     ftsLimit,
-    ...params.slice(1),
     CANDIDATE_CAP,
   ];
 

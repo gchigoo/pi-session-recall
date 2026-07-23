@@ -9,8 +9,15 @@ import {
 import { ERROR_CODES } from "../diagnostics/error-codes.js";
 import { toCodedError } from "../diagnostics/sqlite-errors.js";
 import {
+  canonicalizeRootPath,
+  isLegacyUserRootId,
+  isPathUnderRoot,
+  rootIdForPath,
+} from "../sessions/root-registry.js";
+import {
   assertNotPurgedInProcess,
   ensureDataHome,
+  hardenDbFilePermissions,
   resolveDataHome,
   resolveDbPath,
 } from "./paths.js";
@@ -61,6 +68,9 @@ export function openDatabase(options: OpenDbOptions = {}): DatabaseSync {
       db.exec("PRAGMA synchronous = NORMAL");
       db.exec("PRAGMA mmap_size = 268435456");
       migrate(db);
+      // FK pragma 在事务内无效，legacy root 迁移必须在 migrate 提交后执行
+      migrateLegacyRootIds(db);
+      hardenDbFilePermissions(dbPath);
     } else {
       try {
         db.exec("PRAGMA mmap_size = 268435456");
@@ -114,6 +124,84 @@ function ensureSchemaPatches(db: DatabaseSync): void {
     acquired_at TEXT NOT NULL,
     expires_at TEXT NOT NULL
   )`);
+}
+
+/**
+ * 将易碰撞的旧 user-* 12hex root ID 迁移为全路径哈希 ID。
+ * 若发现 session 路径与 root 不一致（旧碰撞覆盖后遗症），标记 projection degraded。
+ */
+function migrateLegacyRootIds(db: DatabaseSync): void {
+  const roots = db.prepare(`SELECT id, path, source, enabled FROM session_roots`).all() as Array<{
+    id: string;
+    path: string;
+    source: string;
+    enabled: number;
+  }>;
+  const legacy = roots.filter((root) => isLegacyUserRootId(root.id));
+  let conflict = false;
+
+  if (legacy.length > 0) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const root of legacy) {
+        const newId = rootIdForPath(root.path);
+        if (newId === root.id) {
+          continue;
+        }
+        const existing = db
+          .prepare(`SELECT id, path FROM session_roots WHERE id = ?`)
+          .get(newId) as { id: string; path: string } | undefined;
+        if (existing) {
+          if (canonicalizeRootPath(existing.path) !== canonicalizeRootPath(root.path)) {
+            conflict = true;
+            continue;
+          }
+          db.prepare(`UPDATE sessions SET root_id = ? WHERE root_id = ?`).run(newId, root.id);
+          db.prepare(`DELETE FROM session_roots WHERE id = ?`).run(root.id);
+          continue;
+        }
+        // FK ON：先插入临时 path 的新 root，再改 sessions，最后删旧 root 并恢复 path
+        const tempPath = `${root.path}.__migrating__${newId}`;
+        db.prepare(`INSERT INTO session_roots(id, path, source, enabled) VALUES (?, ?, ?, ?)`).run(
+          newId,
+          tempPath,
+          root.source,
+          root.enabled,
+        );
+        db.prepare(`UPDATE sessions SET root_id = ? WHERE root_id = ?`).run(newId, root.id);
+        db.prepare(`DELETE FROM session_roots WHERE id = ?`).run(root.id);
+        db.prepare(`UPDATE session_roots SET path = ? WHERE id = ?`).run(root.path, newId);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  // 旧碰撞覆盖后：session 仍挂在被覆盖的 root 上，file_path 会落在 root 外
+  const rows = db
+    .prepare(
+      `SELECT s.file_path AS filePath, r.path AS rootPath
+       FROM sessions s
+       JOIN session_roots r ON r.id = s.root_id
+       WHERE s.status != 'excluded'`,
+    )
+    .all() as Array<{ filePath: string; rootPath: string }>;
+  for (const row of rows) {
+    if (!isPathUnderRoot(row.filePath, row.rootPath)) {
+      conflict = true;
+      break;
+    }
+  }
+
+  if (conflict) {
+    db.prepare(
+      `UPDATE runtime_config
+       SET projection_status = 'degraded', auto_recall = 0, config_version = config_version + 1
+       WHERE id = 1`,
+    ).run();
+  }
 }
 
 /**

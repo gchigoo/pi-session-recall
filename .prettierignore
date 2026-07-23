@@ -6,3 +6,4 @@ package-lock.json
 tests/fixtures/sessions
 docs/spikes
 roadmap.md
+reviewForV1.0.md
